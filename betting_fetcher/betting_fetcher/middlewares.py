@@ -6,6 +6,23 @@
 # https://docs.scrapy.org/en/latest/topics/spider-middleware.html
 
 from scrapy import signals
+from scrapy.http import HtmlResponse
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
+
+options = webdriver.ChromeOptions()
+options.add_argument('headless')
+options.add_argument('window-size=1200x600')
+options.binary_location = 'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe'
+# All the arguments added for chromium to work on selenium
+options.add_argument("--no-sandbox") # This make Chromium reachable
+options.add_argument("--no-default-browser-check") # Overrides default choices
+options.add_argument("--no-first-run")
+options.add_argument("--disable-default-apps")
+driver = webdriver.Chrome('C:/Program Files (x86)/Google/Chrome/Application/chromedriver.exe',chrome_options=options)
 
 
 class BettingFetcherSpiderMiddleware:
@@ -78,7 +95,24 @@ class BettingFetcherDownloaderMiddleware:
         # - or return a Request object
         # - or raise IgnoreRequest: process_exception() methods of
         #   installed downloader middleware will be called
-        return None
+
+        # if request.url != 'https://www.sports.sportingbet.com/':
+        #     return None
+        if request.url == 'https://sports.sportingbet.com/robots.txt':
+            return None
+
+        xpath_element_required = "//ms-event[@class='grid-event " \
+                                                    "ms-active-highlight " \
+                                                    "ng-star-inserted']"
+
+        driver.get(request.url)
+        WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.XPATH, xpath_element_required))
+        )
+
+        body = driver.page_source
+        return HtmlResponse(driver.current_url, body=body, encoding='utf-8',
+                            request=request)
 
     def process_response(self, request, response, spider):
         # Called with the response returned from the downloader.
